@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Menu, X } from "lucide-react"
+import { Menu, X, PanelTop } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 const navItems = [
@@ -32,19 +32,21 @@ export function Navigation() {
     e.preventDefault()
     const targetId = href.replace("#", "")
     const targetElement = document.getElementById(targetId)
+    const navbarHeight = 80 // Account for navbar height
 
-    if (targetElement) {
-      const navbarHeight = 80 // Account for navbar height
+    const scrollToTarget = () => {
+      if (!targetElement) return
       const elementPosition = targetElement.offsetTop - navbarHeight
-
-      window.scrollTo({
-        top: elementPosition,
-        behavior: "smooth",
-      })
+      window.scrollTo({ top: elementPosition, behavior: "smooth" })
     }
 
-    // Close mobile menu if open
-    setIsMobileMenuOpen(false)
+    if (isMobileMenuOpen) {
+      // Close the mobile menu first, then scroll after the collapse animation
+      setIsMobileMenuOpen(false)
+      setTimeout(scrollToTarget, 120) // matches ~0.3s AnimatePresence transition
+    } else {
+      scrollToTarget()
+    }
   }
 
   return (
@@ -58,18 +60,32 @@ export function Navigation() {
     >
       <div className="max-w-7xl mx-auto px-2 sm:px-3 lg:px-4">
         <div className="flex justify-between items-center h-20">
-          {/* Logo/Home */}
-          <motion.a
-            href="#home"
-            className="text-xl font-bold text-foreground hover:text-primary transition-colors"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={(e) => handleNavClick(e, "#home")}
-          >
-            Home
-          </motion.a>
+          {/* Left side: Mobile menu button (mobile) or Home link (desktop) */}
+          <div className="flex items-center">
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </Button>
 
-          {/* Desktop Navigation */}
+            {/* Logo/Home (desktop only) */}
+            <motion.a
+              href="#home"
+              className="hidden md:inline-block text-foreground hover:text-primary transition-colors"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={(e) => handleNavClick(e, "#home")}
+              aria-label="Go to Home"
+            >
+              <PanelTop size={24} />
+            </motion.a>
+          </div>
+
+          {/* Right side: Desktop Navigation */}
           <div className="hidden md:flex space-x-8">
             {navItems.slice(1).map((item) => (
               <motion.a
@@ -84,16 +100,6 @@ export function Navigation() {
               </motion.a>
             ))}
           </div>
-
-          {/* Mobile Menu Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </Button>
         </div>
       </div>
 
