@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import { ArrowDown } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { CTAButtons } from "@/components/cta-buttons"
 
 export function HeroSection() {
   return (
@@ -36,27 +36,13 @@ export function HeroSection() {
             A passionate developer creating beautiful, functional, and user-centered digital experiences.
           </motion.p>
 
-          <motion.div
-            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.8 }}
-          >
-            <Button
-              size="lg"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 text-lg"
-              asChild
-            >
-              <a href="#work">View My Work</a>
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="border-primary text-primary hover:bg-primary hover:text-primary-foreground px-8 py-3 text-lg bg-transparent"
-              asChild
-            >
-              <a href="#contact">Get In Touch</a>
-            </Button>
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.8 }}>
+            <CTAButtons
+              ctas={[
+                { href: "#work", label: "View My Work" },
+                { href: "#contact", label: "Get In Touch", variant: "outline" },
+              ]}
+            />
           </motion.div>
         </motion.div>
 

@@ -1,57 +1,48 @@
 "use client"
 
-import type React from "react"
-
 import { motion } from "framer-motion"
 import { useInView } from "framer-motion"
-import { useRef, useState } from "react"
+import { useRef } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Mail, MapPin, Phone } from "lucide-react"
+import SectionWrapper from "@/components/section-wrapper"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 
 export function ContactSection() {
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-100px" })
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    message: "",
+
+  const ContactSchema = z.object({
+    name: z.string().min(2, "Name must be at least 2 characters"),
+    email: z.string().email("Enter a valid email"),
+    message: z.string().min(10, "Message must be at least 10 characters"),
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Handle form submission here (no backend functionality needed as per requirements)
-    console.log("Form submitted:", formData)
-    alert("Thank you for your message! I'll get back to you soon.")
-    setFormData({ name: "", email: "", message: "" })
-  }
+  const form = useForm<z.infer<typeof ContactSchema>>({
+    resolver: zodResolver(ContactSchema),
+    defaultValues: { name: "", email: "", message: "" },
+    mode: "onBlur",
+  })
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
+  const onSubmit = (values: z.infer<typeof ContactSchema>) => {
+    console.log("Form submitted:", values)
+    alert("Thank you for your message! I'll get back to you soon.")
+    form.reset()
   }
 
   return (
-    <section id="contact" className="py-20 relative">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8" ref={ref}>
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-          transition={{ duration: 0.8 }}
-          className="text-center mb-16"
-        >
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-6 text-balance">Get In Touch</h2>
-          <div className="w-20 h-1 bg-primary mx-auto mb-8" />
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto text-pretty">
-            I'm always interested in new opportunities and collaborations. Let's discuss how we can work together!
-          </p>
-        </motion.div>
-
-        <div className="grid lg:grid-cols-2 gap-12">
+    <SectionWrapper
+      id="contact"
+      title="Get In Touch"
+      subtitle="I'm always interested in new opportunities and collaborations. Let's discuss how we can work together!"
+    >
+      <div className="grid lg:grid-cols-2 gap-12" ref={ref}>
           {/* Contact Info */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
@@ -120,69 +111,62 @@ export function ContactSection() {
           >
             <Card className="bg-zinc-900/95 backdrop-blur-sm border-border">
               <CardContent className="p-8">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-foreground mb-2">
-                      Name
-                    </label>
-                    <Input
-                      id="name"
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <FormField
+                      control={form.control}
                       name="name"
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={handleChange}
-                      className="bg-input border-border text-foreground"
-                      placeholder="Your full name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} id="name" type="text" className="bg-input border-border text-foreground" placeholder="Your full name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
 
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
-                      Email
-                    </label>
-                    <Input
-                      id="email"
+                    <FormField
+                      control={form.control}
                       name="email"
-                      type="email"
-                      required
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="bg-input border-border text-foreground"
-                      placeholder="your.email@example.com"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input {...field} id="email" type="email" className="bg-input border-border text-foreground" placeholder="your.email@example.com" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
 
-                  <div>
-                    <label htmlFor="message" className="block text-sm font-medium text-foreground mb-2">
-                      Message
-                    </label>
-                    <Textarea
-                      id="message"
+                    <FormField
+                      control={form.control}
                       name="message"
-                      required
-                      value={formData.message}
-                      onChange={handleChange}
-                      rows={5}
-                      className="bg-input border-border text-foreground resize-none"
-                      placeholder="Tell me about your project or just say hello..."
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Message</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} id="message" rows={5} className="bg-input border-border text-foreground resize-none" placeholder="Tell me about your project or just say hello..." />
+                          </FormControl>
+                          <FormDescription></FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
 
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Button
-                      type="submit"
-                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-lg"
-                    >
-                      Send Message
-                    </Button>
-                  </motion.div>
-                </form>
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 text-lg">
+                        Send Message
+                      </Button>
+                    </motion.div>
+                  </form>
+                </Form>
               </CardContent>
             </Card>
           </motion.div>
         </div>
-      </div>
-    </section>
+    </SectionWrapper>
   )
 }
