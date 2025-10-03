@@ -62,13 +62,13 @@ export default function ScrollIndicator() {
           <motion.button
             key={id}
             onClick={() => handleIndicatorClick(id)}
-            className="group relative w-3 h-3 rounded-full border-2 border-foreground/30 transition-all duration-300 hover:border-foreground/60"
+            className="group relative w-4 h-4 rounded-full border-2 border-foreground/30 transition-all duration-300 hover:border-foreground/60"
             whileHover={{ scale: 1.2 }}
             whileTap={{ scale: 0.9 }}
             aria-label={`Go to ${name} section`}
           >
             <motion.div
-              className="absolute inset-0 rounded-full bg-foreground"
+              className="absolute inset-0 rounded-full bg-primary"
               initial={false}
               animate={{
                 scale: activeSection === id ? 1 : 0,
