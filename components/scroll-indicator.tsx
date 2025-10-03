@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
 
 const sections = [
@@ -13,102 +13,13 @@ const sections = [
 
 export default function ScrollIndicator() {
   const [activeSection, setActiveSection] = useState("home")
-  const [isIdleAnimation, setIsIdleAnimation] = useState(false)
-  const [animationStep, setAnimationStep] = useState(0)
-  const [direction, setDirection] = useState(1) // 1 for forward, -1 for backward
-  
+  const [isIdle, setIsIdle] = useState(false)
+  const [animatingIndex, setAnimatingIndex] = useState<number | null>(null)
   const idleTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const animationIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const restartTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const lastScrollTimeRef = useRef<number>(Date.now())
-  const isScrollingRef = useRef<boolean>(false)
+  const directionRef = useRef(1) // 1 = forward, -1 = backward
 
-  // Track scroll state
-  useEffect(() => {
-    let scrollTimeout: NodeJS.Timeout
-
-    const handleScroll = () => {
-      lastScrollTimeRef.current = Date.now()
-      isScrollingRef.current = true
-      
-      // Clear any existing idle animation
-      if (idleTimeoutRef.current) {
-        clearTimeout(idleTimeoutRef.current)
-        idleTimeoutRef.current = null
-      }
-      if (animationIntervalRef.current) {
-        clearInterval(animationIntervalRef.current)
-        animationIntervalRef.current = null
-      }
-      if (restartTimeoutRef.current) {
-        clearTimeout(restartTimeoutRef.current)
-        restartTimeoutRef.current = null
-      }
-      
-      setIsIdleAnimation(false)
-      setAnimationStep(0)
-      
-      // Set scrolling to false after 150ms of no scroll
-      clearTimeout(scrollTimeout)
-      scrollTimeout = setTimeout(() => {
-        isScrollingRef.current = false
-      }, 150)
-    }
-
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', handleScroll)
-      clearTimeout(scrollTimeout)
-    }
-  }, [])
-
-  // Start idle animation after 5 seconds of no scrolling
-  useEffect(() => {
-    if (!isScrollingRef.current) {
-      idleTimeoutRef.current = setTimeout(() => {
-        if (!isScrollingRef.current) {
-          startIdleAnimation()
-        }
-      }, 5000)
-    }
-
-    return () => {
-      if (idleTimeoutRef.current) {
-        clearTimeout(idleTimeoutRef.current)
-      }
-    }
-  }, [activeSection])
-
-  const startIdleAnimation = useCallback(() => {
-    setIsIdleAnimation(true)
-    setAnimationStep(0)
-    setDirection(1)
-    
-    let currentStep = 0
-    
-    animationIntervalRef.current = setInterval(() => {
-      if (isScrollingRef.current) {
-        // Stop animation if user is scrolling
-        clearInterval(animationIntervalRef.current!)
-        setIsIdleAnimation(false)
-        setAnimationStep(0)
-        return
-      }
-      
-      currentStep++
-      setAnimationStep(currentStep)
-    }, 30) // 200ms per step
-  }, [])
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current)
-      if (animationIntervalRef.current) clearInterval(animationIntervalRef.current)
-      if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current)
-    }
-  }, [])
-
+  // --- Intersection Observer (normal scroll tracking) ---
   useEffect(() => {
     const observerOptions = {
       root: null,
@@ -120,27 +31,71 @@ export default function ScrollIndicator() {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           setActiveSection(entry.target.id)
+          setAnimatingIndex(null) // stop animation, sync with scroll
         }
       })
     }
 
     const observer = new IntersectionObserver(observerCallback, observerOptions)
-
-    // Observe all sections
     sections.forEach(({ id }) => {
       const element = document.getElementById(id)
-      if (element) {
-        observer.observe(element)
-      }
+      if (element) observer.observe(element)
     })
 
     return () => observer.disconnect()
   }, [])
 
+  // --- Idle detection ---
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsIdle(false)
+      if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current)
+      if (animationIntervalRef.current) clearInterval(animationIntervalRef.current)
+
+      idleTimeoutRef.current = setTimeout(() => {
+        setIsIdle(true)
+      }, 5000) // 5s idle threshold
+    }
+
+    window.addEventListener("scroll", handleScroll)
+    handleScroll() // initialize
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll)
+      if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current)
+      if (animationIntervalRef.current) clearInterval(animationIntervalRef.current)
+    }
+  }, [])
+
+  // --- Animation loop when idle ---
+  useEffect(() => {
+    if (isIdle) {
+      let index = sections.findIndex((s) => s.id === activeSection)
+      if (index === -1) index = 0
+      setAnimatingIndex(index)
+
+      animationIntervalRef.current = setInterval(() => {
+        index += directionRef.current
+        if (index >= sections.length) {
+          directionRef.current = -1
+          index = sections.length - 2
+        } else if (index < 0) {
+          directionRef.current = 1
+          index = 1
+        }
+        setAnimatingIndex(index)
+      }, 200) // speed of step
+
+      return () => {
+        if (animationIntervalRef.current) clearInterval(animationIntervalRef.current)
+      }
+    }
+  }, [isIdle, activeSection])
+
   const handleIndicatorClick = (sectionId: string) => {
     const element = document.getElementById(sectionId)
     if (element) {
-      const navbarHeight = 80 // Account for navbar height
+      const navbarHeight = 80
       const elementPosition = element.offsetTop - navbarHeight
 
       window.scrollTo({
@@ -150,48 +105,14 @@ export default function ScrollIndicator() {
     }
   }
 
-  // Calculate animation position and tail effects
-  const getAnimationState = (index: number) => {
-    if (!isIdleAnimation) {
-      return {
-        isActive: activeSection === sections[index].id,
-        opacity: activeSection === sections[index].id ? 1 : 0,
-        scale: activeSection === sections[index].id ? 1 : 0,
-      }
-    }
-
-    // Calculate current position in animation with bouncing
-    const stepsPerPosition = 5
-    const totalPositions = sections.length
-    const cycleLength = (totalPositions - 1) * 2 // Full cycle: 0->4->0 = 8 steps
-    const cycleStep = animationStep % cycleLength
-    
-    let targetPosition
-    if (cycleStep < totalPositions) {
-      // Moving forward: 0, 1, 2, 3, 4
-      targetPosition = cycleStep
-    } else {
-      // Moving backward: 3, 2, 1, 0
-      targetPosition = cycleLength - cycleStep
-    }
-
-    const isActive = index === targetPosition
-    const isTail1 = index === targetPosition - 1 && targetPosition > 0
-    const isTail2 = index === targetPosition - 2 && targetPosition > 1
-
-    return {
-      isActive,
-      opacity: isActive ? 1 : (isTail1 ? 0.34 : isTail2 ? 0.12 : 0),
-      scale: isActive ? 1 : (isTail1 ? 0.8 : isTail2 ? 0.6 : 0),
-    }
-  }
-
   return (
     <div className="fixed left-6 top-1/2 -translate-y-1/2 z-40 hidden md:block">
       <div className="flex flex-col space-y-4">
         {sections.map(({ id, name }, index) => {
-          const animationState = getAnimationState(index)
-          
+          const isActive = animatingIndex !== null ? animatingIndex === index : activeSection === id
+          const isTail1 = animatingIndex !== null && animatingIndex - 1 === index
+          const isTail2 = animatingIndex !== null && animatingIndex - 2 === index
+
           return (
             <motion.button
               key={id}
@@ -205,10 +126,10 @@ export default function ScrollIndicator() {
                 className="absolute inset-0 rounded-full bg-primary"
                 initial={false}
                 animate={{
-                  scale: animationState.scale,
-                  opacity: animationState.opacity,
+                  scale: isActive ? 1 : 0,
+                  opacity: isActive ? 1 : isTail1 ? 0.34 : isTail2 ? 0.12 : 0,
                 }}
-                transition={{ duration: 0.2, ease: "easeInOut" }}
+                transition={{ duration: 0.4, ease: "easeInOut" }}
               />
 
               {/* Tooltip */}
